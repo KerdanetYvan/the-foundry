@@ -1,0 +1,70 @@
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  web:
+    image: ${WEB_IMAGE}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://foundry:${POSTGRES_PASSWORD}@db:5432/foundry
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_URL: ${APP_URL}
+      SERVER_ADDRESS: ${SERVER_ADDRESS}
+      RCON_HOST: minecraft
+      RCON_PORT: 25575
+      RCON_PASSWORD: ${RCON_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: foundry
+      POSTGRES_USER: foundry
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foundry -d foundry"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minecraft:
+    image: itzg/minecraft-server:java17
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      EULA: "TRUE"
+      TYPE: FORGE
+      VERSION: "1.20.1"
+      FORGE_VERSION: "47.4.0"
+      MEMORY: "8G"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      RCON_PORT: "25575"
+    volumes:
+      - mc_data:/data
+    ports:
+      - "25565:25565"
+      - "24454:24454/udp"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+  mc_data:

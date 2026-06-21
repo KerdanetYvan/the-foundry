@@ -1,0 +1,7 @@
+{
+	email ton-email@example.com
+}
+
+ton-domaine.com {
+	reverse_proxy web:3000
+}

@@ -2,11 +2,9 @@
 .gitignore
 .next
 node_modules
-drizzle
 .env
 .env.local
 .env*.local
 README.md
-Dockerfile
 .dockerignore
 .github

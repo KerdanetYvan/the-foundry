@@ -67,4 +67,5 @@ jobs:
             docker pull ghcr.io/${{ github.repository }}:latest
             cd ~/docker
             docker compose up -d --no-deps --force-recreate web
+            docker compose exec -T web node /app/scripts/migrate.mjs
             docker image prune -f
