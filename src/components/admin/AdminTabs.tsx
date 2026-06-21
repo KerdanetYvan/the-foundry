@@ -66,7 +66,7 @@ function MiniChart({ data, dataKey, color }: { data: MetricPoint[]; dataKey: key
         <Tooltip
           contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
           labelFormatter={(label) => fmtTime(label as string)}
-          formatter={(v: number) => [`${v.toFixed(1)}%`]}
+          formatter={(v) => [`${(v as number).toFixed(1)}%`]}
         />
         <Area type="monotone" dataKey={dataKey as string} stroke={color} strokeWidth={1.5} fill={`url(#grad-${dataKey as string})`} dot={false} isAnimationActive={false} />
       </AreaChart>
