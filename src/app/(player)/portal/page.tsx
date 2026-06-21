@@ -4,10 +4,11 @@ import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
 import { T } from "@/lib/tokens";
 import { db } from "@/lib/db";
-import { users, settings, announcements } from "@/lib/db/schema";
+import { users, announcements } from "@/lib/db/schema";
 import { verifySession } from "@/lib/auth/session";
 import { logout } from "@/lib/actions/auth";
 import { getServerInfo } from "@/lib/rcon";
+import { getLastBackupDate } from "@/lib/backup";
 import AnnouncementsSection from "@/components/portal/AnnouncementsSection";
 import ServerStatus from "@/components/portal/ServerStatus";
 
@@ -19,16 +20,16 @@ export default async function PortalPage() {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
   if (!user) redirect("/login");
 
-  const [serverInfo, lastBackupRow, announcementList] = await Promise.all([
+  const [serverInfo, announcementList] = await Promise.all([
     getServerInfo(),
-    db.query.settings.findFirst({ where: eq(settings.key, "last_backup_at") }),
     db.select().from(announcements).orderBy(desc(announcements.createdAt)),
   ]);
 
   const address = process.env.SERVER_ADDRESS ?? "server-mc.kerdanetyvan.dev";
 
-  const lastBackup = lastBackupRow?.value
-    ? new Date(lastBackupRow.value).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
+  const lastBackupDate = getLastBackupDate();
+  const lastBackup = lastBackupDate
+    ? lastBackupDate.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
     : null;
 
   return (

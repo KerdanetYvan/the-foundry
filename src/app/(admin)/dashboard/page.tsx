@@ -3,7 +3,6 @@ import { T } from "@/lib/tokens";
 import { db } from "@/lib/db";
 import { invitations, announcements } from "@/lib/db/schema";
 import { logout } from "@/lib/actions/auth";
-import { markBackupNow } from "@/lib/actions/announcements";
 import CreateInviteModal from "@/components/admin/CreateInviteModal";
 import InvitationsTable from "@/components/admin/InvitationsTable";
 import AnnouncementManager from "@/components/admin/AnnouncementManager";
@@ -63,16 +62,6 @@ export default async function DashboardPage() {
           <AnnouncementManager items={serializedAnnouncements} />
         </section>
 
-        <section>
-          <div style={{ fontFamily: T.vt, fontSize: 16, color: T.copper, letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 20 }}>
-            Serveur
-          </div>
-          <form action={markBackupNow}>
-            <button type="submit" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "10px 20px", fontFamily: T.sans, fontSize: 13, color: T.textSub, cursor: "pointer" }}>
-              Marquer une sauvegarde maintenant
-            </button>
-          </form>
-        </section>
       </div>
     </main>
   );
