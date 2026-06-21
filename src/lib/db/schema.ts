@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, boolean, integer, text } from "drizzle-orm/pg-core";
 
 export const invitations = pgTable("invitations", {
   id: serial("id").primaryKey(),
@@ -17,5 +17,18 @@ export const users = pgTable("users", {
   whitelisted: boolean("whitelisted").notNull().default(false),
   invitationId: integer("invitation_id").references(() => invitations.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const settings = pgTable("settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  value: text("value"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

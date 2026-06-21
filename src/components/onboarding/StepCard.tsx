@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Step } from "@/data/onboarding";
 import { T } from "@/lib/tokens";
 
@@ -5,20 +6,21 @@ interface StepCardProps {
   step: Step;
 }
 
-export default function StepCard({ step }: StepCardProps) {
+const cardStyle = {
+  background: T.card,
+  border: `1px solid ${T.border}`,
+  borderRadius: 12,
+  padding: "24px 28px",
+  display: "flex",
+  gap: 22,
+  alignItems: "flex-start",
+  textDecoration: "none",
+  color: "inherit",
+};
+
+function CardInner({ step }: { step: Step }) {
   return (
-    <div
-      className="mc-step"
-      style={{
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 12,
-        padding: "24px 28px",
-        display: "flex",
-        gap: 22,
-        alignItems: "flex-start",
-      }}
-    >
+    <>
       <div
         style={{
           fontFamily: T.vt,
@@ -44,7 +46,7 @@ export default function StepCard({ step }: StepCardProps) {
             fontSize: 15,
             lineHeight: 1.7,
             color: T.textSub,
-            marginBottom: step.note || step.link ? 10 : 0,
+            marginBottom: step.note ? 10 : 0,
           }}
         >
           {step.body}
@@ -57,26 +59,44 @@ export default function StepCard({ step }: StepCardProps) {
               color: T.muted,
               borderLeft: `2px solid ${T.border}`,
               paddingLeft: 12,
-              marginBottom: step.link ? 10 : 0,
             }}
           >
             {step.note}
           </div>
         )}
         {step.link && (
-          <a
-            href={step.link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.mono, fontSize: 13, color: T.grass }}
-          >
+          <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.mono, fontSize: 13, color: T.grass }}>
             {step.link.label}
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
               <path d="M1.5 9.5L9.5 1.5M9.5 1.5H4.5M9.5 1.5V6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
-          </a>
+          </div>
         )}
       </div>
+    </>
+  );
+}
+
+export default function StepCard({ step }: StepCardProps) {
+  if (step.link) {
+    return (
+      <a href={step.link.href} target="_blank" rel="noopener noreferrer" className="mc-step" style={cardStyle}>
+        <CardInner step={step} />
+      </a>
+    );
+  }
+
+  if (step.internalHref) {
+    return (
+      <Link href={step.internalHref} className="mc-step" style={cardStyle}>
+        <CardInner step={step} />
+      </Link>
+    );
+  }
+
+  return (
+    <div className="mc-step" style={cardStyle}>
+      <CardInner step={step} />
     </div>
   );
 }

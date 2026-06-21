@@ -15,6 +15,13 @@
       "when": 1782012171804,
       "tag": "0001_spicy_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782052434939,
+      "tag": "0002_fearless_selene",
+      "breakpoints": true
     }
   ]
 }

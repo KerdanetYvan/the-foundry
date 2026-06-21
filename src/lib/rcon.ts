@@ -26,6 +26,38 @@ function parseResponse(buf: Buffer): { id: number; type: number; body: string } 
   return { id, type, body };
 }
 
+export type ServerInfo = {
+  online: boolean;
+  players: { online: number; max: number } | null;
+  tps: number | null;
+};
+
+export async function getServerInfo(): Promise<ServerInfo> {
+  if (!process.env.RCON_HOST) {
+    if (process.env.NODE_ENV === "development") {
+      return { online: true, players: { online: 3, max: 15 }, tps: 19.8 };
+    }
+    return { online: false, players: null, tps: null };
+  }
+  try {
+    const [listRes, tpsRes] = await Promise.all([
+      rconCommand("list"),
+      rconCommand("forge tps"),
+    ]);
+    const playersMatch = listRes.match(/There are (\d+) of a max of (\d+)/);
+    const tpsMatch = tpsRes.match(/Overall.*?Mean TPS:\s*([\d.]+)/);
+    return {
+      online: true,
+      players: playersMatch
+        ? { online: parseInt(playersMatch[1], 10), max: parseInt(playersMatch[2], 10) }
+        : null,
+      tps: tpsMatch ? parseFloat(tpsMatch[1]) : null,
+    };
+  } catch {
+    return { online: false, players: null, tps: null };
+  }
+}
+
 export async function rconCommand(command: string): Promise<string> {
   const host = process.env.RCON_HOST ?? "localhost";
   const port = parseInt(process.env.RCON_PORT ?? "25575", 10);

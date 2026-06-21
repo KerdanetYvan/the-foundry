@@ -17,6 +17,7 @@ export interface Step {
   title: string;
   body: string;
   link?: { label: string; href: string };
+  internalHref?: string;
   note?: string;
 }
 
@@ -73,9 +74,10 @@ export const STEPS: Step[] = [
     note:  "Alloue 4 Go minimum de RAM dans les paramètres du profil.",
   },
   {
-    n:     "03",
-    title: "Lance et rejoins",
-    body:  "Lance Minecraft depuis le profil. Multijoueur → Ajouter un serveur → colle l'adresse ci-dessous.",
+    n:            "03",
+    title:        "Lance et rejoins",
+    body:         "Lance Minecraft depuis le profil. Multijoueur → Ajouter un serveur → l'adresse du serveur est disponible sur ta page Portail.",
+    internalHref: "/portal",
   },
 ];
 

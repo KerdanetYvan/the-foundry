@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { T } from "@/lib/tokens";
 import { FEATURES, MODS, STEPS } from "@/data/onboarding";
 import FeaturePanel from "@/components/onboarding/FeaturePanel";
@@ -7,6 +8,14 @@ import StepCard from "@/components/onboarding/StepCard";
 export default function GuidePage() {
   return (
     <div style={{ background: T.bg, color: T.text, minHeight: "100vh", fontFamily: T.sans }}>
+      <div style={{ padding: "20px 28px" }}>
+        <Link href="/portal" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: T.mono, fontSize: 13, color: T.muted, textDecoration: "none" }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M12 7H2M2 7L7 2M2 7L7 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Retour au portail
+        </Link>
+      </div>
       <HeroSection />
 
       <section style={{ maxWidth: 700, margin: "0 auto", padding: "100px 32px 80px", textAlign: "center" }}>
@@ -43,6 +52,64 @@ export default function GuidePage() {
               <span style={{ fontFamily: T.sans, fontWeight: 400, fontSize: 13, color: T.textSub }}>{mod.name}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section style={{ padding: "60px 24px 80px", maxWidth: 820, margin: "0 auto", borderTop: `1px solid ${T.border}` }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <h2 style={{ fontFamily: T.pixel, fontSize: "clamp(12px, 2vw, 17px)", color: T.text, textShadow: "2px 2px 0 rgba(0,0,0,.9)", lineHeight: 1.6, marginBottom: 10 }}>CONFIG CLIENT</h2>
+          <p style={{ fontFamily: T.sans, fontWeight: 300, color: T.muted, fontSize: 14 }}>Un seul modpack — configure-le selon ta machine.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+          {/* Lite */}
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 26px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: T.grass, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.display, fontSize: 17, color: T.text }}>The Foundry — Lite</span>
+              <span style={{ marginLeft: "auto", fontFamily: T.mono, fontSize: 11, color: T.muted, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 4, padding: "2px 7px" }}>Minimale</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
+              {[
+                ["RAM launcher", "4 Go"],
+                ["RAM machine", "8 Go min."],
+                ["CPU", "i5-8400 / R5 2600"],
+                ["GPU", "GTX 1060 6G / RX 580 8G"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontFamily: T.sans, fontSize: 13 }}>
+                  <span style={{ color: T.muted }}>{k}</span>
+                  <span style={{ color: T.textSub }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14, fontFamily: T.sans, fontSize: 12, color: T.muted, borderLeft: "none", lineHeight: 1.6 }}>
+              Ça tourne. Rubidium (inclus) est indispensable sur cette config — ne le désactive pas.
+            </div>
+          </div>
+
+          {/* Recommandée */}
+          <div style={{ background: T.card, border: `1px solid ${T.copper}40`, borderRadius: 12, padding: "24px 26px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: T.copper, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.display, fontSize: 17, color: T.text }}>The Foundry</span>
+              <span style={{ marginLeft: "auto", fontFamily: T.mono, fontSize: 11, color: T.copper, background: `${T.copper}15`, border: `1px solid ${T.copper}40`, borderRadius: 4, padding: "2px 7px" }}>Recommandée</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
+              {[
+                ["RAM launcher", "6 Go"],
+                ["RAM machine", "16 Go"],
+                ["CPU", "i5-12400 / R5 5600"],
+                ["GPU", "RTX 3060 / RX 6600 XT"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontFamily: T.sans, fontSize: 13 }}>
+                  <span style={{ color: T.muted }}>{k}</span>
+                  <span style={{ color: T.textSub }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14, fontFamily: T.sans, fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+              Pour un confort minimal. Oculus inclus pour les shaders — compatibles Create : Complementary Reimagined, BSL Shaders (à installer manuellement).
+            </div>
+          </div>
         </div>
       </section>
 
