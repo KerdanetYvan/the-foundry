@@ -9,12 +9,7 @@ import { verifySession } from "@/lib/auth/session";
 import { logout } from "@/lib/actions/auth";
 import { getServerInfo } from "@/lib/rcon";
 import AnnouncementsSection from "@/components/portal/AnnouncementsSection";
-
-function tpsColor(tps: number): string {
-  if (tps >= 18) return T.grass;
-  if (tps >= 12) return "#FBBF24";
-  return "#F87171";
-}
+import ServerStatus from "@/components/portal/ServerStatus";
 
 export default async function PortalPage() {
   const token = (await cookies()).get("session")?.value;
@@ -59,28 +54,8 @@ export default async function PortalPage() {
           </form>
         </div>
 
-        {/* Statut serveur */}
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "16px 24px", marginBottom: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-          <div>
-            <div style={{ fontFamily: T.mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>STATUT</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: serverInfo.online ? T.grass : "#F87171", flexShrink: 0 }} />
-              <span style={{ fontFamily: T.sans, fontSize: 14, color: T.text }}>{serverInfo.online ? "En ligne" : "Hors ligne"}</span>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: T.mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>JOUEURS</div>
-            <span style={{ fontFamily: T.mono, fontSize: 15, color: T.text }}>
-              {serverInfo.players ? <>{serverInfo.players.online} <span style={{ color: T.muted, fontSize: 12 }}>/ {serverInfo.players.max}</span></> : "—"}
-            </span>
-          </div>
-          <div>
-            <div style={{ fontFamily: T.mono, fontSize: 11, color: T.muted, marginBottom: 6 }}>TPS</div>
-            <span style={{ fontFamily: T.mono, fontSize: 15, color: serverInfo.tps !== null ? tpsColor(serverInfo.tps) : T.muted }}>
-              {serverInfo.tps !== null ? serverInfo.tps.toFixed(1) : "—"}
-            </span>
-          </div>
-        </div>
+        {/* Statut serveur — polling toutes les 10s */}
+        <ServerStatus initial={serverInfo} />
 
         {/* Dernière sauvegarde */}
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
