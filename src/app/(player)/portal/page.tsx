@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
+import Link from "next/link";
 import { T } from "@/lib/tokens";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -40,7 +41,7 @@ export default async function PortalPage() {
         </div>
 
         {user.whitelisted && (
-          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 28px" }}>
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "24px 28px", marginBottom: 16 }}>
             <div style={{ fontFamily: T.vt, fontSize: 15, letterSpacing: ".15em", color: T.copper, textTransform: "uppercase", marginBottom: 12 }}>
               Adresse du serveur
             </div>
@@ -49,6 +50,13 @@ export default async function PortalPage() {
             </div>
           </div>
         )}
+
+        <Link
+          href="/guide"
+          style={{ display: "inline-block", fontFamily: T.sans, fontWeight: 600, fontSize: 14, letterSpacing: ".06em", color: T.grass, background: T.grassDim, border: `1px solid rgba(93,158,64,0.32)`, borderRadius: 6, padding: "12px 24px", textDecoration: "none" }}
+        >
+          Comment rejoindre →
+        </Link>
       </div>
     </main>
   );

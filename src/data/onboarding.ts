@@ -67,8 +67,9 @@ export const STEPS: Step[] = [
   },
   {
     n:     "02",
-    title: "Importe le profil",
-    body:  "CurseForge → Créer un profil → Importer. Colle le code envoyé sur le Discord. Les ~2 Go se téléchargent tout seuls.",
+    title: "Installe le modpack",
+    body:  "Ouvre CurseForge, clique sur le lien ci-dessous et installe The Space Foundry. Les ~2 Go se téléchargent tout seuls.",
+    link:  { label: "The Space Foundry sur CurseForge", href: "https://www.curseforge.com/minecraft/modpacks/the-space-foundry" },
     note:  "Alloue 4 Go minimum de RAM dans les paramètres du profil.",
   },
   {
