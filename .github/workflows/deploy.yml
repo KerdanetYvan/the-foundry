@@ -71,8 +71,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            docker pull ghcr.io/${{ github.repository }}:latest
             cd /opt/minecraft
+            docker compose pull web
             docker compose up -d --no-deps --force-recreate web
             docker compose exec -T web node /app/scripts/migrate.mjs
             docker image prune -f
