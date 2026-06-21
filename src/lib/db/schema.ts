@@ -1,10 +1,21 @@
-import { pgTable, serial, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 
-export const players = pgTable("players", {
+export const invitations = pgTable("invitations", {
   id: serial("id").primaryKey(),
-  uuid: varchar("uuid", { length: 36 }).notNull().unique(),
-  username: varchar("username", { length: 64 }).notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  maxUses: integer("max_uses").notNull(),
+  useCount: integer("use_count").notNull().default(0),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: varchar("username", { length: 64 }).notNull().unique(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  role: varchar("role", { length: 10 }).notNull().default("player"),
   whitelisted: boolean("whitelisted").notNull().default(false),
+  invitationId: integer("invitation_id").references(() => invitations.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
