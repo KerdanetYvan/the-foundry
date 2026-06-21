@@ -38,5 +38,7 @@ export const serverMetrics = pgTable("server_metrics", {
   cpuPct: real("cpu_pct").notNull(),
   ramPct: real("ram_pct").notNull(),
   diskPct: real("disk_pct").notNull(),
+  mcCpuPct: real("mc_cpu_pct"),
+  mcRamPct: real("mc_ram_pct"),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });

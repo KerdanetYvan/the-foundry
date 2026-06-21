@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { T } from "@/lib/tokens";
 import type { ServerInfo } from "@/lib/rcon";
 import AnnouncementManager from "./AnnouncementManager";
@@ -21,10 +19,22 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "annonces", label: "Annonces" },
 ];
 
-type MetricPoint = { id: number; cpuPct: number; ramPct: number; diskPct: number; recordedAt: string };
+type MetricPoint = {
+  id: number;
+  cpuPct: number;
+  ramPct: number;
+  diskPct: number;
+  mcCpuPct: number | null;
+  mcRamPct: number | null;
+  recordedAt: string;
+};
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
 type Announcement = { id: number; content: string; createdAt: string };
 type Invitation = { id: number; token: string; maxUses: number; useCount: number; expiresAt: string; createdAt: string };
+
+const MC = T.copper;
+const HOST = T.grass;
+const DISK_COLOR = "#60A5FA";
 
 function tpsColor(tps: number) {
   if (tps >= 18) return T.grass;
@@ -42,35 +52,87 @@ function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function StatCard({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+type ChartLine = { dataKey: string; color: string; name: string };
+
+function MetricChart({
+  data,
+  lines,
+  yFormatter = (v: number) => `${v}%`,
+}: {
+  data: MetricPoint[];
+  lines: ChartLine[];
+  yFormatter?: (v: number) => string;
+}) {
+  if (data.length < 2) {
+    return (
+      <div style={{ height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>Collecte en cours…</span>
+      </div>
+    );
+  }
+  return (
+    <ResponsiveContainer width="100%" height={100}>
+      <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <defs>
+          {lines.map((l) => (
+            <linearGradient key={l.dataKey} id={`grad-${l.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={l.color} stopOpacity={0.22} />
+              <stop offset="95%" stopColor={l.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+        <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+        <YAxis domain={[0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
+        <Tooltip
+          contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
+          labelFormatter={(label) => fmtTime(label as string)}
+          formatter={(v, name) => [yFormatter(v as number), name]}
+        />
+        {lines.map((l) => (
+          <Area key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name} stroke={l.color} strokeWidth={1.5} fill={`url(#grad-${l.dataKey})`} dot={false} isAnimationActive={false} connectNulls={false} />
+        ))}
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ChartCard({
+  label,
+  badges,
+  data,
+  lines,
+  full,
+}: {
+  label: string;
+  badges: { text: string; color: string; dot: string }[];
+  data: MetricPoint[];
+  lines: ChartLine[];
+  full?: boolean;
+}) {
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px", gridColumn: full ? "1 / -1" : undefined }}>
-      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>{label}</div>
-      {children}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, letterSpacing: ".08em" }}>{label}</span>
+        <div style={{ display: "flex", gap: 16 }}>
+          {badges.map((b) => (
+            <span key={b.text} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: b.dot, flexShrink: 0 }} />
+              <span style={{ fontFamily: T.mono, fontSize: 14, fontWeight: 700, color: b.color }}>{b.text}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <MetricChart data={data} lines={lines} />
     </div>
   );
 }
 
-function MiniChart({ data, dataKey, color }: { data: MetricPoint[]; dataKey: keyof MetricPoint; color: string }) {
+function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <ResponsiveContainer width="100%" height={90}>
-      <AreaChart data={data} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-        <defs>
-          <linearGradient id={`grad-${dataKey as string}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-        <YAxis domain={[0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-        <Tooltip
-          contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
-          labelFormatter={(label) => fmtTime(label as string)}
-          formatter={(v) => [`${(v as number).toFixed(1)}%`]}
-        />
-        <Area type="monotone" dataKey={dataKey as string} stroke={color} strokeWidth={1.5} fill={`url(#grad-${dataKey as string})`} dot={false} isAnimationActive={false} />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>{label}</div>
+      {children}
+    </div>
   );
 }
 
@@ -81,6 +143,8 @@ function ActionBtn({ onClick, label, color }: { onClick: () => void; label: stri
     </button>
   );
 }
+
+type CurrentMetrics = { cpuPct: number; ramPct: number; diskPct: number; mcCpuPct: number | null; mcRamPct: number | null; mcRamMb: number | null };
 
 export default function AdminTabs({
   initialServerInfo,
@@ -100,10 +164,9 @@ export default function AdminTabs({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("monitoring");
   const [serverInfo, setServerInfo] = useState<ServerInfo>(initialServerInfo);
-  const [metricsHistory, setMetricsHistory] = useState<MetricPoint[]>([]);
-  const [currentMetrics, setCurrentMetrics] = useState<{ cpuPct: number; ramPct: number; diskPct: number } | null>(null);
+  const [history, setHistory] = useState<MetricPoint[]>([]);
+  const [current, setCurrent] = useState<CurrentMetrics | null>(null);
 
-  // Polling statut serveur (toutes les 10s)
   useEffect(() => {
     const poll = async () => {
       try {
@@ -116,7 +179,6 @@ export default function AdminTabs({
     return () => clearInterval(id);
   }, []);
 
-  // Polling métriques système (toutes les 30s, uniquement sur l'onglet monitoring)
   useEffect(() => {
     if (activeTab !== "monitoring") return;
     const poll = async () => {
@@ -124,8 +186,8 @@ export default function AdminTabs({
         const res = await fetch("/api/metrics");
         if (res.ok) {
           const data = await res.json();
-          setCurrentMetrics(data.current);
-          setMetricsHistory(data.history);
+          setCurrent(data.current);
+          setHistory(data.history);
         }
       } catch {}
     };
@@ -134,38 +196,25 @@ export default function AdminTabs({
     return () => clearInterval(id);
   }, [activeTab]);
 
+  const hasMc = current?.mcCpuPct !== null;
+
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
       {/* Onglets */}
       <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
         {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              padding: "14px 24px",
-              fontFamily: T.sans,
-              fontSize: 13,
-              fontWeight: activeTab === key ? 600 : 400,
-              color: activeTab === key ? T.text : T.muted,
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === key ? `2px solid ${T.grass}` : "2px solid transparent",
-              cursor: "pointer",
-              letterSpacing: ".04em",
-            }}
-          >
+          <button key={key} onClick={() => setActiveTab(key)} style={{ padding: "14px 24px", fontFamily: T.sans, fontSize: 13, fontWeight: activeTab === key ? 600 : 400, color: activeTab === key ? T.text : T.muted, background: "transparent", border: "none", borderBottom: activeTab === key ? `2px solid ${T.grass}` : "2px solid transparent", cursor: "pointer", letterSpacing: ".04em" }}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Contenu */}
       <div style={{ padding: "28px 32px" }}>
 
         {/* ── Monitoring ── */}
         {activeTab === "monitoring" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
             {/* Statut Minecraft */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
               <StatCard label="STATUT SERVEUR">
@@ -185,37 +234,52 @@ export default function AdminTabs({
                 </span>
               </StatCard>
               <StatCard label="DERNIÈRE SAUVEGARDE">
-                <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>
-                  {lastBackup ?? "Aucune info"}
-                </span>
+                <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
               </StatCard>
             </div>
 
-            {/* Métriques hôte (live) */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-              {(["cpuPct", "ramPct", "diskPct"] as const).map((key) => {
-                const labels = { cpuPct: "CPU", ramPct: "RAM", diskPct: "DISQUE" };
-                const val = currentMetrics?.[key] ?? null;
-                const color = val !== null ? pctColor(val) : T.muted;
-                return (
-                  <div key={key} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <span style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, letterSpacing: ".08em" }}>{labels[key]}</span>
-                      <span style={{ fontFamily: T.mono, fontSize: 18, fontWeight: 700, color }}>
-                        {val !== null ? `${val.toFixed(1)}%` : "—"}
-                      </span>
-                    </div>
-                    {metricsHistory.length > 1 ? (
-                      <MiniChart data={metricsHistory} dataKey={key} color={color} />
-                    ) : (
-                      <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>Collecte en cours…</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Charts CPU + RAM */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <ChartCard
+                label="CPU"
+                badges={[
+                  { text: current ? `${current.cpuPct.toFixed(1)}%` : "—", color: pctColor(current?.cpuPct ?? 0), dot: HOST },
+                  ...(hasMc && current?.mcCpuPct != null
+                    ? [{ text: `${current.mcCpuPct!.toFixed(1)}%`, color: pctColor(current.mcCpuPct!), dot: MC }]
+                    : []),
+                ]}
+                data={history}
+                lines={[
+                  { dataKey: "cpuPct", color: HOST, name: "Hôte" },
+                  ...(hasMc ? [{ dataKey: "mcCpuPct", color: MC, name: "Minecraft" }] : []),
+                ]}
+              />
+              <ChartCard
+                label="RAM"
+                badges={[
+                  { text: current ? `${current.ramPct.toFixed(1)}%` : "—", color: pctColor(current?.ramPct ?? 0), dot: HOST },
+                  ...(hasMc && current?.mcRamPct != null
+                    ? [{ text: current?.mcRamMb ? `${current.mcRamMb} Mo` : `${current.mcRamPct!.toFixed(1)}%`, color: pctColor(current.mcRamPct!), dot: MC }]
+                    : []),
+                ]}
+                data={history}
+                lines={[
+                  { dataKey: "ramPct", color: HOST, name: "Hôte" },
+                  ...(hasMc ? [{ dataKey: "mcRamPct", color: MC, name: "Minecraft" }] : []),
+                ]}
+              />
             </div>
+
+            {/* Chart Disque */}
+            <ChartCard
+              label="DISQUE"
+              badges={[
+                { text: current ? `${current.diskPct.toFixed(1)}%` : "—", color: pctColor(current?.diskPct ?? 0), dot: DISK_COLOR },
+              ]}
+              data={history}
+              lines={[{ dataKey: "diskPct", color: DISK_COLOR, name: "Disque" }]}
+              full
+            />
           </div>
         )}
 
@@ -229,9 +293,7 @@ export default function AdminTabs({
                 <thead>
                   <tr>
                     {["Joueur", "Rôle", "Whitelist", "Inscrit le", "Actions"].map((h) => (
-                      <th key={h} style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, textAlign: "left", paddingBottom: 12, letterSpacing: ".08em" }}>
-                        {h}
-                      </th>
+                      <th key={h} style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, textAlign: "left", paddingBottom: 12, letterSpacing: ".08em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -239,13 +301,9 @@ export default function AdminTabs({
                   {users.map((user) => (
                     <tr key={user.id} style={{ borderTop: `1px solid ${T.border}` }}>
                       <td style={{ padding: "12px 0", fontFamily: T.sans, fontSize: 14, color: T.text }}>{user.username}</td>
-                      <td style={{ padding: "12px 12px 12px 0", fontFamily: T.mono, fontSize: 11, color: user.role === "admin" ? T.copper : T.muted }}>
-                        {user.role}
-                      </td>
+                      <td style={{ padding: "12px 12px 12px 0", fontFamily: T.mono, fontSize: 11, color: user.role === "admin" ? T.copper : T.muted }}>{user.role}</td>
                       <td style={{ padding: "12px 12px 12px 0" }}>
-                        <span style={{ fontFamily: T.mono, fontSize: 11, color: user.whitelisted ? T.grass : "#F87171" }}>
-                          {user.whitelisted ? "Oui" : "Non"}
-                        </span>
+                        <span style={{ fontFamily: T.mono, fontSize: 11, color: user.whitelisted ? T.grass : "#F87171" }}>{user.whitelisted ? "Oui" : "Non"}</span>
                       </td>
                       <td style={{ padding: "12px 12px 12px 0", fontFamily: T.mono, fontSize: 11, color: T.muted }}>
                         {new Date(user.createdAt).toLocaleDateString("fr-FR")}
@@ -259,11 +317,7 @@ export default function AdminTabs({
                             onClick={async () => { await setWhitelisted(user.id, user.username, !user.whitelisted); router.refresh(); }}
                           />
                           {user.role !== "admin" && (
-                            <ActionBtn
-                              label="Ban"
-                              color="#F87171"
-                              onClick={async () => { await banPlayer(user.username, user.id); router.refresh(); }}
-                            />
+                            <ActionBtn label="Ban" color="#F87171" onClick={async () => { await banPlayer(user.username, user.id); router.refresh(); }} />
                           )}
                         </div>
                       </td>

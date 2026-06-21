@@ -1,26 +1,35 @@
-import { readFileSync, statfsSync } from "fs";
+import { readFileSync, readdirSync, statfsSync } from "fs";
 
-function parseProcStat(): number[] {
+function findMinecraftPid(): number | null {
+  try {
+    for (const entry of readdirSync("/host/proc")) {
+      if (!/^\d+$/.test(entry)) continue;
+      try {
+        const cmdline = readFileSync(`/host/proc/${entry}/cmdline`).toString().replace(/\0/g, " ");
+        if (cmdline.includes("java") &&
+            (cmdline.includes("minecraft") || cmdline.includes("forge") || cmdline.includes("@libraries"))) {
+          return parseInt(entry, 10);
+        }
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
+function readSysStats(): number[] {
   const line = readFileSync("/host/proc/stat", "utf8").split("\n")[0];
   return line.trim().split(/\s+/).slice(1).map(Number);
 }
 
-async function getCpuPct(): Promise<number> {
-  const s1 = parseProcStat();
-  await new Promise((r) => setTimeout(r, 250));
-  const s2 = parseProcStat();
-
-  const idle1 = s1[3] + s1[4]; // idle + iowait
-  const total1 = s1.reduce((a, b) => a + b, 0);
-  const idle2 = s2[3] + s2[4];
-  const total2 = s2.reduce((a, b) => a + b, 0);
-
-  const totalDiff = total2 - total1;
-  if (totalDiff === 0) return 0;
-  return Math.round((1 - (idle2 - idle1) / totalDiff) * 1000) / 10;
+// /proc/<pid>/stat — utime at field 14, stime at field 15 (1-indexed)
+// After ") ": [0]=state … [11]=utime [12]=stime
+function readProcessTicks(pid: number): number {
+  const stat = readFileSync(`/host/proc/${pid}/stat`, "utf8");
+  const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+  return parseInt(fields[11], 10) + parseInt(fields[12], 10);
 }
 
-function getRamPct(): number {
+function getHostRamPct(): number {
   const content = readFileSync("/host/proc/meminfo", "utf8");
   const get = (key: string) => {
     const m = content.match(new RegExp(`^${key}:\\s+(\\d+)`, "m"));
@@ -28,37 +37,86 @@ function getRamPct(): number {
   };
   const total = get("MemTotal");
   const available = get("MemAvailable");
-  if (total === 0) return 0;
-  return Math.round(((total - available) / total) * 1000) / 10;
+  return total === 0 ? 0 : Math.round(((total - available) / total) * 1000) / 10;
+}
+
+function getMcRam(pid: number): { pct: number; mb: number } | null {
+  try {
+    const status = readFileSync(`/host/proc/${pid}/status`, "utf8");
+    const meminfo = readFileSync("/host/proc/meminfo", "utf8");
+    const rssMatch = status.match(/^VmRSS:\s+(\d+)/m);
+    const totalMatch = meminfo.match(/^MemTotal:\s+(\d+)/m);
+    if (!rssMatch || !totalMatch) return null;
+    const rssKb = parseInt(rssMatch[1], 10);
+    const totalKb = parseInt(totalMatch[1], 10);
+    return {
+      pct: Math.round((rssKb / totalKb) * 1000) / 10,
+      mb: Math.round(rssKb / 1024),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function getDiskPct(): number {
   const s = statfsSync("/host/root");
   const used = s.blocks - s.bfree;
-  const total = used + s.bavail; // formule df : used / (used + available)
-  if (total === 0) return 0;
-  return Math.round((used / total) * 1000) / 10;
+  const total = used + s.bavail;
+  return total === 0 ? 0 : Math.round((used / total) * 1000) / 10;
 }
 
 export type MetricsSnapshot = {
   cpuPct: number;
   ramPct: number;
   diskPct: number;
+  mcCpuPct: number | null;
+  mcRamPct: number | null;
+  mcRamMb: number | null;
 };
 
 export async function readMetrics(): Promise<MetricsSnapshot> {
   try {
-    const [cpuPct, ramPct, diskPct] = await Promise.all([
-      getCpuPct(),
-      Promise.resolve(getRamPct()),
-      Promise.resolve(getDiskPct()),
-    ]);
-    return { cpuPct, ramPct, diskPct };
+    const mcPid = findMinecraftPid();
+
+    const sys1 = readSysStats();
+    const proc1 = mcPid !== null ? readProcessTicks(mcPid) : null;
+
+    await new Promise((r) => setTimeout(r, 250));
+
+    const sys2 = readSysStats();
+    const proc2 = mcPid !== null ? readProcessTicks(mcPid) : null;
+
+    const idle1 = sys1[3] + sys1[4];
+    const total1 = sys1.reduce((a, b) => a + b, 0);
+    const idle2 = sys2[3] + sys2[4];
+    const total2 = sys2.reduce((a, b) => a + b, 0);
+    const sysDelta = total2 - total1;
+
+    const cpuPct = sysDelta === 0 ? 0 : Math.round((1 - (idle2 - idle1) / sysDelta) * 1000) / 10;
+    const mcCpuPct = (proc1 !== null && proc2 !== null && sysDelta > 0)
+      ? Math.round(((proc2 - proc1) / sysDelta) * 1000) / 10
+      : null;
+
+    const ramPct = getHostRamPct();
+    const diskPct = getDiskPct();
+    const mcRam = mcPid !== null ? getMcRam(mcPid) : null;
+
+    return {
+      cpuPct,
+      ramPct,
+      diskPct,
+      mcCpuPct,
+      mcRamPct: mcRam?.pct ?? null,
+      mcRamMb: mcRam?.mb ?? null,
+    };
   } catch {
     return {
       cpuPct: Math.round(Math.random() * 25 + 8),
       ramPct: Math.round(Math.random() * 15 + 55),
       diskPct: 38,
+      mcCpuPct: Math.round(Math.random() * 15 + 5),
+      mcRamPct: Math.round(Math.random() * 10 + 20),
+      mcRamMb: 3200 + Math.round(Math.random() * 600),
     };
   }
 }
