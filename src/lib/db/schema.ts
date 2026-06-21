@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, boolean, integer, text } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, boolean, integer, text, real } from "drizzle-orm/pg-core";
 
 export const invitations = pgTable("invitations", {
   id: serial("id").primaryKey(),
@@ -31,4 +31,12 @@ export const settings = pgTable("settings", {
   key: varchar("key", { length: 64 }).primaryKey(),
   value: text("value"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const serverMetrics = pgTable("server_metrics", {
+  id: serial("id").primaryKey(),
+  cpuPct: real("cpu_pct").notNull(),
+  ramPct: real("ram_pct").notNull(),
+  diskPct: real("disk_pct").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });

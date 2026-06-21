@@ -1,34 +1,36 @@
-import { desc } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
 import { T } from "@/lib/tokens";
 import { db } from "@/lib/db";
-import { invitations, announcements } from "@/lib/db/schema";
+import { invitations, announcements, users } from "@/lib/db/schema";
 import { logout } from "@/lib/actions/auth";
-import CreateInviteModal from "@/components/admin/CreateInviteModal";
-import InvitationsTable from "@/components/admin/InvitationsTable";
-import AnnouncementManager from "@/components/admin/AnnouncementManager";
+import { getServerInfo } from "@/lib/rcon";
+import { getLastBackupDate } from "@/lib/backup";
+import AdminTabs from "@/components/admin/AdminTabs";
 
 export default async function DashboardPage() {
-  const [rows, announcementRows] = await Promise.all([
+  const [invRows, announcementRows, userRows, serverInfo] = await Promise.all([
     db.select().from(invitations).orderBy(desc(invitations.createdAt)),
     db.select().from(announcements).orderBy(desc(announcements.createdAt)),
+    db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role,
+      whitelisted: users.whitelisted,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(asc(users.createdAt)),
+    getServerInfo(),
   ]);
 
-  const serialized = rows.map((inv) => ({
-    ...inv,
-    expiresAt: inv.expiresAt.toISOString(),
-    createdAt: inv.createdAt.toISOString(),
-  }));
-
-  const serializedAnnouncements = announcementRows.map((a) => ({
-    ...a,
-    createdAt: a.createdAt.toISOString(),
-  }));
+  const lastBackupDate = getLastBackupDate();
+  const lastBackup = lastBackupDate
+    ? lastBackupDate.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
+    : null;
 
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
   return (
     <main style={{ background: T.bg, color: T.text, minHeight: "100vh", fontFamily: T.sans, padding: "60px 32px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 48 }}>
           <div>
             <h1 style={{ fontFamily: T.display, fontSize: "clamp(28px, 4vw, 42px)", color: T.text, marginBottom: 8 }}>
@@ -45,23 +47,14 @@ export default async function DashboardPage() {
           </form>
         </div>
 
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ fontFamily: T.vt, fontSize: 16, color: T.copper, letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 20 }}>
-            Invitations
-          </div>
-          <CreateInviteModal />
-          <InvitationsTable invitations={serialized} appUrl={appUrl} />
-        </section>
-
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ fontFamily: T.vt, fontSize: 16, color: T.copper, letterSpacing: ".2em", textTransform: "uppercase" }}>
-              Annonces
-            </div>
-          </div>
-          <AnnouncementManager items={serializedAnnouncements} />
-        </section>
-
+        <AdminTabs
+          initialServerInfo={serverInfo}
+          users={userRows.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }))}
+          announcements={announcementRows.map((a) => ({ id: a.id, content: a.content, createdAt: a.createdAt.toISOString() }))}
+          invitations={invRows.map((inv) => ({ ...inv, expiresAt: inv.expiresAt.toISOString(), createdAt: inv.createdAt.toISOString() }))}
+          lastBackup={lastBackup}
+          appUrl={appUrl}
+        />
       </div>
     </main>
   );
