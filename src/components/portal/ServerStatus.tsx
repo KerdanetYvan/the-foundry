@@ -21,6 +21,7 @@ export default function ServerStatus({ initial }: { initial: ServerInfo }) {
       } catch {}
     };
 
+    poll();
     const id = setInterval(poll, 10_000);
     return () => clearInterval(id);
   }, []);
