@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { T } from "@/lib/tokens";
 import type { ServerInfo } from "@/lib/rcon";
 import AnnouncementManager from "./AnnouncementManager";
@@ -98,7 +98,12 @@ function MetricChart({
         </defs>
         <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
         <YAxis domain={yDomain ?? [0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
-{lines.map((l) => (
+        <Tooltip
+          contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
+          labelFormatter={(label) => fmtTime(label as string)}
+          formatter={(v, name) => [yFormatter(v as number), name]}
+        />
+        {lines.map((l) => (
           <Area key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name} stroke={l.color} strokeWidth={1.5} fill={`url(#grad-${l.dataKey})`} dot={false} isAnimationActive={false} connectNulls={false} />
         ))}
       </AreaChart>
