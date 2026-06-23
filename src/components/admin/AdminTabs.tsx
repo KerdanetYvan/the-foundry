@@ -93,16 +93,15 @@ function MetricChart({
   yFormatter?: (v: number) => string;
   tooltipFormatter?: (v: number) => string;
 }) {
-  if (data.length < 2) {
-    return (
-      <div style={{ height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>Collecte en cours…</span>
-      </div>
-    );
-  }
+  const hasData = data.length >= 2;
   return (
-    <div style={{ overflow: "hidden", borderRadius: 4 }}>
-    <ResponsiveContainer width="100%" height={100}>
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 4 }}>
+      {!hasData && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, pointerEvents: "none" }}>
+          <span style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>Collecte en cours…</span>
+        </div>
+      )}
+    <ResponsiveContainer width="100%" height={100} style={{ visibility: hasData ? "visible" : "hidden" }}>
       <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <defs>
           {lines.map((l) => (
@@ -217,16 +216,28 @@ export default function AdminTabs({
     return () => clearInterval(id);
   }, []);
 
+  // Polling rapide (1s) — valeurs live uniquement, sans écriture en base
+  useEffect(() => {
+    if (activeTab !== "monitoring") return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/metrics/current");
+        if (res.ok && active) setCurrent(await res.json());
+      } catch {}
+      if (active) setTimeout(poll, 1_000);
+    };
+    poll();
+    return () => { active = false; };
+  }, [activeTab]);
+
+  // Polling lent (30s) — historique pour les graphiques + écriture en base
   useEffect(() => {
     if (activeTab !== "monitoring") return;
     const poll = async () => {
       try {
         const res = await fetch("/api/metrics");
-        if (res.ok) {
-          const data = await res.json();
-          setCurrent(data.current);
-          setHistory(data.history);
-        }
+        if (res.ok) setHistory((await res.json()).history);
       } catch {}
     };
     poll();
