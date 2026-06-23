@@ -13,9 +13,12 @@ export async function GET() {
     db.insert(serverMetrics).values({
       cpuPct: snap.cpuPct,
       ramPct: snap.ramPct,
+      ramMb: snap.ramMb,
       diskPct: snap.diskPct,
+      diskGb: snap.diskGb,
       mcCpuPct: snap.mcCpuPct,
       mcRamPct: snap.mcRamPct,
+      mcRamMb: snap.mcRamMb,
     }),
     db.delete(serverMetrics).where(lt(serverMetrics.recordedAt, pruneAfter)),
   ]);

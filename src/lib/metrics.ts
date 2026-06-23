@@ -29,7 +29,7 @@ function readProcessTicks(pid: number): number {
   return parseInt(fields[11], 10) + parseInt(fields[12], 10);
 }
 
-function getHostRamPct(): number {
+function getHostRam(): { pct: number; mb: number } {
   const content = readFileSync("/host/proc/meminfo", "utf8");
   const get = (key: string) => {
     const m = content.match(new RegExp(`^${key}:\\s+(\\d+)`, "m"));
@@ -37,7 +37,11 @@ function getHostRamPct(): number {
   };
   const total = get("MemTotal");
   const available = get("MemAvailable");
-  return total === 0 ? 0 : Math.round(((total - available) / total) * 1000) / 10;
+  const usedKb = total - available;
+  return {
+    pct: total === 0 ? 0 : Math.round((usedKb / total) * 1000) / 10,
+    mb: Math.round(usedKb / 1024),
+  };
 }
 
 function getMcRam(pid: number): { pct: number; mb: number } | null {
@@ -58,17 +62,22 @@ function getMcRam(pid: number): { pct: number; mb: number } | null {
   }
 }
 
-function getDiskPct(): number {
+function getDisk(): { pct: number; gb: number } {
   const s = statfsSync("/host/root");
   const used = s.blocks - s.bfree;
   const total = used + s.bavail;
-  return total === 0 ? 0 : Math.round((used / total) * 1000) / 10;
+  return {
+    pct: total === 0 ? 0 : Math.round((used / total) * 1000) / 10,
+    gb: Math.round((used * s.bsize) / 1e9 * 10) / 10,
+  };
 }
 
 export type MetricsSnapshot = {
   cpuPct: number;
   ramPct: number;
+  ramMb: number;
   diskPct: number;
+  diskGb: number;
   mcCpuPct: number | null;
   mcRamPct: number | null;
   mcRamMb: number | null;
@@ -97,14 +106,16 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
       ? Math.round(((proc2 - proc1) / sysDelta) * 1000) / 10
       : null;
 
-    const ramPct = getHostRamPct();
-    const diskPct = getDiskPct();
+    const ram = getHostRam();
+    const disk = getDisk();
     const mcRam = mcPid !== null ? getMcRam(mcPid) : null;
 
     return {
       cpuPct,
-      ramPct,
-      diskPct,
+      ramPct: ram.pct,
+      ramMb: ram.mb,
+      diskPct: disk.pct,
+      diskGb: disk.gb,
       mcCpuPct,
       mcRamPct: mcRam?.pct ?? null,
       mcRamMb: mcRam?.mb ?? null,
@@ -113,7 +124,9 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
     return {
       cpuPct: Math.round(Math.random() * 25 + 8),
       ramPct: Math.round(Math.random() * 15 + 55),
+      ramMb: 3800 + Math.round(Math.random() * 500),
       diskPct: 38,
+      diskGb: Math.round((47 + Math.random() * 2) * 10) / 10,
       mcCpuPct: Math.round(Math.random() * 15 + 5),
       mcRamPct: Math.round(Math.random() * 10 + 20),
       mcRamMb: 3200 + Math.round(Math.random() * 600),

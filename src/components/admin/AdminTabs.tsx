@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { T } from "@/lib/tokens";
 import type { ServerInfo } from "@/lib/rcon";
 import AnnouncementManager from "./AnnouncementManager";
@@ -23,9 +23,12 @@ type MetricPoint = {
   id: number;
   cpuPct: number;
   ramPct: number;
+  ramMb: number;
   diskPct: number;
+  diskGb: number;
   mcCpuPct: number | null;
   mcRamPct: number | null;
+  mcRamMb: number | null;
   recordedAt: string;
 };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
@@ -52,15 +55,26 @@ function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtMb(mb: number) {
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} Go`;
+  return `${mb} Mo`;
+}
+
+function fmtGb(gb: number) {
+  return `${gb.toFixed(1)} Go`;
+}
+
 type ChartLine = { dataKey: string; color: string; name: string };
 
 function MetricChart({
   data,
   lines,
+  yDomain,
   yFormatter = (v: number) => `${v}%`,
 }: {
   data: MetricPoint[];
   lines: ChartLine[];
+  yDomain?: [number | string, number | string];
   yFormatter?: (v: number) => string;
 }) {
   if (data.length < 2) {
@@ -83,13 +97,8 @@ function MetricChart({
           ))}
         </defs>
         <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-        <YAxis domain={[0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
-        <Tooltip
-          contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
-          labelFormatter={(label) => fmtTime(label as string)}
-          formatter={(v, name) => [yFormatter(v as number), name]}
-        />
-        {lines.map((l) => (
+        <YAxis domain={yDomain ?? [0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
+{lines.map((l) => (
           <Area key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name} stroke={l.color} strokeWidth={1.5} fill={`url(#grad-${l.dataKey})`} dot={false} isAnimationActive={false} connectNulls={false} />
         ))}
       </AreaChart>
@@ -103,12 +112,16 @@ function ChartCard({
   badges,
   data,
   lines,
+  yDomain,
+  yFormatter,
   full,
 }: {
   label: string;
   badges: { text: string; color: string; dot: string }[];
   data: MetricPoint[];
   lines: ChartLine[];
+  yDomain?: [number | string, number | string];
+  yFormatter?: (v: number) => string;
   full?: boolean;
 }) {
   return (
@@ -124,7 +137,7 @@ function ChartCard({
           ))}
         </div>
       </div>
-      <MetricChart data={data} lines={lines} />
+      <MetricChart data={data} lines={lines} yDomain={yDomain} yFormatter={yFormatter} />
     </div>
   );
 }
@@ -146,7 +159,7 @@ function ActionBtn({ onClick, label, color }: { onClick: () => void; label: stri
   );
 }
 
-type CurrentMetrics = { cpuPct: number; ramPct: number; diskPct: number; mcCpuPct: number | null; mcRamPct: number | null; mcRamMb: number | null };
+type CurrentMetrics = { cpuPct: number; ramPct: number; ramMb: number; diskPct: number; diskGb: number; mcCpuPct: number | null; mcRamPct: number | null; mcRamMb: number | null };
 
 export default function AdminTabs({
   initialServerInfo,
@@ -259,16 +272,18 @@ export default function AdminTabs({
               <ChartCard
                 label="RAM"
                 badges={[
-                  { text: current ? `${current.ramPct.toFixed(1)}%` : "—", color: pctColor(current?.ramPct ?? 0), dot: HOST },
-                  ...(hasMc && current?.mcRamPct != null
-                    ? [{ text: current?.mcRamMb ? `${current.mcRamMb} Mo` : `${current.mcRamPct!.toFixed(1)}%`, color: pctColor(current.mcRamPct!), dot: MC }]
+                  { text: current ? fmtMb(current.ramMb) : "—", color: pctColor(current?.ramPct ?? 0), dot: HOST },
+                  ...(hasMc && current?.mcRamMb != null
+                    ? [{ text: fmtMb(current.mcRamMb!), color: pctColor(current.mcRamPct ?? 0), dot: MC }]
                     : []),
                 ]}
                 data={history}
                 lines={[
-                  { dataKey: "ramPct", color: HOST, name: "Hôte" },
-                  ...(hasMc ? [{ dataKey: "mcRamPct", color: MC, name: "Minecraft" }] : []),
+                  { dataKey: "ramMb", color: HOST, name: "Hôte" },
+                  ...(hasMc ? [{ dataKey: "mcRamMb", color: MC, name: "Minecraft" }] : []),
                 ]}
+                yDomain={["auto", "auto"]}
+                yFormatter={fmtMb}
               />
             </div>
 
@@ -276,10 +291,12 @@ export default function AdminTabs({
             <ChartCard
               label="DISQUE"
               badges={[
-                { text: current ? `${current.diskPct.toFixed(1)}%` : "—", color: pctColor(current?.diskPct ?? 0), dot: DISK_COLOR },
+                { text: current ? fmtGb(current.diskGb) : "—", color: pctColor(current?.diskPct ?? 0), dot: DISK_COLOR },
               ]}
               data={history}
-              lines={[{ dataKey: "diskPct", color: DISK_COLOR, name: "Disque" }]}
+              lines={[{ dataKey: "diskGb", color: DISK_COLOR, name: "Disque" }]}
+              yDomain={["auto", "auto"]}
+              yFormatter={fmtGb}
               full
             />
           </div>
