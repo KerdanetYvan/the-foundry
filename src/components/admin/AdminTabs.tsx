@@ -55,6 +55,20 @@ function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function tenMinTicks(data: MetricPoint[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const d of data) {
+    const dt = new Date(d.recordedAt);
+    const key = `${dt.getHours()}:${Math.floor(dt.getMinutes() / 10)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(d.recordedAt);
+    }
+  }
+  return result;
+}
+
 function fmtMb(mb: number) {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} Go`;
   return `${mb} Mo`;
@@ -96,7 +110,7 @@ function MetricChart({
             </linearGradient>
           ))}
         </defs>
-        <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+        <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} ticks={tenMinTicks(data)} />
         <YAxis domain={yDomain ?? [0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
         <Tooltip
           contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
