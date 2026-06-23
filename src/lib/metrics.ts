@@ -29,7 +29,7 @@ function readProcessTicks(pid: number): number {
   return parseInt(fields[11], 10) + parseInt(fields[12], 10);
 }
 
-function getHostRam(): { pct: number; mb: number } {
+function getHostRam(): { pct: number; mb: number; totalMb: number } {
   const content = readFileSync("/host/proc/meminfo", "utf8");
   const get = (key: string) => {
     const m = content.match(new RegExp(`^${key}:\\s+(\\d+)`, "m"));
@@ -41,7 +41,21 @@ function getHostRam(): { pct: number; mb: number } {
   return {
     pct: total === 0 ? 0 : Math.round((usedKb / total) * 1000) / 10,
     mb: Math.round(usedKb / 1024),
+    totalMb: Math.round(total / 1024),
   };
+}
+
+function getMcMaxRamMb(pid: number): number | null {
+  try {
+    const cmdline = readFileSync(`/host/proc/${pid}/cmdline`).toString().replace(/\0/g, " ");
+    const match = cmdline.match(/-Xmx(\d+)([gGmM])/);
+    if (!match) return null;
+    const value = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    return unit === "g" ? value * 1024 : value;
+  } catch {
+    return null;
+  }
 }
 
 function getMcRam(pid: number): { pct: number; mb: number } | null {
@@ -76,11 +90,13 @@ export type MetricsSnapshot = {
   cpuPct: number;
   ramPct: number;
   ramMb: number;
+  ramTotalMb: number;
   diskPct: number;
   diskGb: number;
   mcCpuPct: number | null;
   mcRamPct: number | null;
   mcRamMb: number | null;
+  mcRamTotalMb: number | null;
 };
 
 export async function readMetrics(): Promise<MetricsSnapshot> {
@@ -109,27 +125,32 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
     const ram = getHostRam();
     const disk = getDisk();
     const mcRam = mcPid !== null ? getMcRam(mcPid) : null;
+    const mcRamTotalMb = mcPid !== null ? getMcMaxRamMb(mcPid) : null;
 
     return {
       cpuPct,
       ramPct: ram.pct,
       ramMb: ram.mb,
+      ramTotalMb: ram.totalMb,
       diskPct: disk.pct,
       diskGb: disk.gb,
       mcCpuPct,
       mcRamPct: mcRam?.pct ?? null,
       mcRamMb: mcRam?.mb ?? null,
+      mcRamTotalMb,
     };
   } catch {
     return {
       cpuPct: Math.round(Math.random() * 25 + 8),
       ramPct: Math.round(Math.random() * 15 + 55),
       ramMb: 3800 + Math.round(Math.random() * 500),
+      ramTotalMb: 16384,
       diskPct: 38,
       diskGb: Math.round((47 + Math.random() * 2) * 10) / 10,
       mcCpuPct: Math.round(Math.random() * 15 + 5),
       mcRamPct: Math.round(Math.random() * 10 + 20),
       mcRamMb: 3200 + Math.round(Math.random() * 600),
+      mcRamTotalMb: 8192,
     };
   }
 }

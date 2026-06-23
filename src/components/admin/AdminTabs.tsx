@@ -18,6 +18,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "annonces", label: "Annonces" },
 ];
 
+type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
 type Announcement = { id: number; content: string; createdAt: string };
 type Invitation = { id: number; token: string; maxUses: number; useCount: number; expiresAt: string; createdAt: string };
@@ -63,6 +64,7 @@ export default function AdminTabs({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("monitoring");
   const [serverInfo, setServerInfo] = useState<ServerInfo>(initialServerInfo);
+  const [live, setLive] = useState<LiveSnapshot | null>(null);
 
   useEffect(() => {
     const poll = async () => {
@@ -75,6 +77,20 @@ export default function AdminTabs({
     const id = setInterval(poll, 10_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "monitoring") return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/metrics/current");
+        if (res.ok && active) setLive(await res.json());
+      } catch {}
+      if (active) setTimeout(poll, 1_000);
+    };
+    poll();
+    return () => { active = false; };
+  }, [activeTab]);
 
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -112,6 +128,53 @@ export default function AdminTabs({
               <StatCard label="DERNIÈRE SAUVEGARDE">
                 <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
               </StatCard>
+            </div>
+
+            {/* Cards métriques live */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {/* CPU */}
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>CPU</div>
+                <div style={{ display: "flex" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
+                    <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
+                      {live ? `${live.cpuPct.toFixed(1)}%` : "—"}
+                    </span>
+                  </div>
+                  {live?.mcCpuPct != null && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
+                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
+                        {`${live.mcCpuPct.toFixed(1)}%`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RAM */}
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>RAM</div>
+                <div style={{ display: "flex" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
+                    <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
+                      {live ? `${(live.ramMb / 1024).toFixed(1)} / ${Math.round(live.ramTotalMb / 1024)} Go` : "—"}
+                    </span>
+                  </div>
+                  {live?.mcRamMb != null && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
+                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
+                        {live.mcRamTotalMb != null
+                          ? `${(live.mcRamMb / 1024).toFixed(1)} / ${Math.round(live.mcRamTotalMb / 1024)} Go`
+                          : `${(live.mcRamMb / 1024).toFixed(1)} Go`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
