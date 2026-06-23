@@ -1,8 +1,23 @@
 diff --git a/node_modules/recharts/lib/state/legendSlice.js b/node_modules/recharts/lib/state/legendSlice.js
-index 4ca008e..59d0989 100644
+index 4ca008e..79b9e83 100644
 --- a/node_modules/recharts/lib/state/legendSlice.js
 +++ b/node_modules/recharts/lib/state/legendSlice.js
-@@ -53,7 +53,8 @@ var legendSlice = (0, _toolkit.createSlice)({
+@@ -43,7 +43,13 @@ var legendSlice = (0, _toolkit.createSlice)({
+     },
+     addLegendPayload: {
+       reducer(state, action) {
+-        state.payload.push((0, _immer.castDraft)(action.payload));
++        var dataKey = action.payload[0] && action.payload[0].dataKey;
++        var existing = state.payload.findIndex(function(arr) { return arr[0] && arr[0].dataKey === dataKey; });
++        if (existing > -1) {
++          state.payload[existing] = (0, _immer.castDraft)(action.payload);
++        } else {
++          state.payload.push((0, _immer.castDraft)(action.payload));
++        }
+       },
+       prepare: (0, _toolkit.prepareAutoBatched)()
+     },
+@@ -53,7 +59,8 @@ var legendSlice = (0, _toolkit.createSlice)({
            prev,
            next
          } = action.payload;
@@ -12,7 +27,7 @@ index 4ca008e..59d0989 100644
          if (index > -1) {
            state.payload[index] = (0, _immer.castDraft)(next);
          }
-@@ -62,7 +63,8 @@ var legendSlice = (0, _toolkit.createSlice)({
+@@ -62,7 +69,8 @@ var legendSlice = (0, _toolkit.createSlice)({
      },
      removeLegendPayload: {
        reducer(state, action) {
@@ -23,10 +38,25 @@ index 4ca008e..59d0989 100644
            state.payload.splice(index, 1);
          }
 diff --git a/node_modules/recharts/lib/state/tooltipSlice.js b/node_modules/recharts/lib/state/tooltipSlice.js
-index d2e59b4..11e0f8b 100644
+index d2e59b4..534d93a 100644
 --- a/node_modules/recharts/lib/state/tooltipSlice.js
 +++ b/node_modules/recharts/lib/state/tooltipSlice.js
-@@ -130,7 +130,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
+@@ -120,7 +120,13 @@ var tooltipSlice = (0, _toolkit.createSlice)({
+   reducers: {
+     addTooltipEntrySettings: {
+       reducer(state, action) {
+-        state.tooltipItemPayloads.push((0, _immer.castDraft)(action.payload));
++        var id = action.payload.settings.graphicalItemId;
++        var existing = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
++        if (existing > -1) {
++          state.tooltipItemPayloads[existing] = (0, _immer.castDraft)(action.payload);
++        } else {
++          state.tooltipItemPayloads.push((0, _immer.castDraft)(action.payload));
++        }
+       },
+       prepare: (0, _toolkit.prepareAutoBatched)()
+     },
+@@ -130,7 +136,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
            prev,
            next
          } = action.payload;
@@ -36,7 +66,7 @@ index d2e59b4..11e0f8b 100644
          if (index > -1) {
            state.tooltipItemPayloads[index] = (0, _immer.castDraft)(next);
          }
-@@ -139,7 +140,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
+@@ -139,7 +146,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
      },
      removeTooltipEntrySettings: {
        reducer(state, action) {
