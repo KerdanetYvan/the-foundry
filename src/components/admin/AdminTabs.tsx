@@ -226,9 +226,8 @@ export default function AdminTabs({
 
       <div style={{ padding: "28px 32px" }}>
 
-        {/* ── Monitoring ── */}
-        {activeTab === "monitoring" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* ── Monitoring ── always mounted to prevent <Area> unmount/remount accumulation in recharts v3 Redux */}
+        <div style={activeTab === "monitoring" ? { display: "flex", flexDirection: "column", gap: 14 } : { height: 0, overflow: "hidden" }}>
 
             {/* Statut Minecraft */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
@@ -300,7 +299,6 @@ export default function AdminTabs({
               full
             />
           </div>
-        )}
 
         {/* ── Modération ── */}
         {activeTab === "moderation" && (
