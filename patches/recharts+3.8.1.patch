@@ -38,7 +38,7 @@ index 4ca008e..79b9e83 100644
            state.payload.splice(index, 1);
          }
 diff --git a/node_modules/recharts/lib/state/tooltipSlice.js b/node_modules/recharts/lib/state/tooltipSlice.js
-index d2e59b4..534d93a 100644
+index d2e59b4..4384943 100644
 --- a/node_modules/recharts/lib/state/tooltipSlice.js
 +++ b/node_modules/recharts/lib/state/tooltipSlice.js
 @@ -120,7 +120,13 @@ var tooltipSlice = (0, _toolkit.createSlice)({
@@ -46,8 +46,8 @@ index d2e59b4..534d93a 100644
      addTooltipEntrySettings: {
        reducer(state, action) {
 -        state.tooltipItemPayloads.push((0, _immer.castDraft)(action.payload));
-+        var id = action.payload.settings.graphicalItemId;
-+        var existing = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
++        var dataKey = action.payload.settings.dataKey;
++        var existing = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.dataKey === dataKey; });
 +        if (existing > -1) {
 +          state.tooltipItemPayloads[existing] = (0, _immer.castDraft)(action.payload);
 +        } else {
@@ -61,8 +61,8 @@ index d2e59b4..534d93a 100644
            next
          } = action.payload;
 -        var index = (0, _toolkit.current)(state).tooltipItemPayloads.indexOf((0, _immer.castDraft)(prev));
-+        var id = prev.settings.graphicalItemId;
-+        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
++        var dataKey = prev.settings.dataKey;
++        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.dataKey === dataKey; });
          if (index > -1) {
            state.tooltipItemPayloads[index] = (0, _immer.castDraft)(next);
          }
@@ -71,8 +71,8 @@ index d2e59b4..534d93a 100644
      removeTooltipEntrySettings: {
        reducer(state, action) {
 -        var index = (0, _toolkit.current)(state).tooltipItemPayloads.indexOf((0, _immer.castDraft)(action.payload));
-+        var id = action.payload.settings.graphicalItemId;
-+        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
++        var dataKey = action.payload.settings.dataKey;
++        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.dataKey === dataKey; });
          if (index > -1) {
            state.tooltipItemPayloads.splice(index, 1);
          }
