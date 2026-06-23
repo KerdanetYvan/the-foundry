@@ -114,9 +114,28 @@ function MetricChart({
         <XAxis dataKey="recordedAt" tickFormatter={fmtTime} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} ticks={tenMinTicks(data)} />
         <YAxis domain={yDomain ?? [0, 100]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={yFormatter} />
         <Tooltip
-          contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
-          labelFormatter={(label) => fmtTime(label as string)}
-          formatter={(v, name) => [(tooltipFormatter ?? yFormatter)(v as number), name]}
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const seen = new Set<string>();
+            const unique = payload.filter((p) => {
+              const key = p.dataKey as string;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            return (
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "6px 10px", fontFamily: T.mono, fontSize: 11 }}>
+                <div style={{ color: T.muted, marginBottom: 4 }}>{fmtTime(label as string)}</div>
+                {unique.map((p) => (
+                  <div key={p.dataKey as string} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.color, flexShrink: 0, display: "inline-block" }} />
+                    <span style={{ color: T.textSub }}>{p.name}</span>
+                    <span style={{ color: T.text, fontWeight: 700 }}>{(tooltipFormatter ?? yFormatter)(p.value as number)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          }}
         />
         {lines.map((l) => (
           <Area key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name} stroke={l.color} strokeWidth={1.5} fill={`url(#grad-${l.dataKey})`} dot={false} isAnimationActive={false} connectNulls={false} />
