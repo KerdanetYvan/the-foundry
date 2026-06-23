@@ -6,6 +6,7 @@ import { logout } from "@/lib/actions/auth";
 import { getServerInfo } from "@/lib/rcon";
 import { getLastBackupDate } from "@/lib/backup";
 import AdminTabs from "@/components/admin/AdminTabs";
+import MinecraftTerminal from "@/components/admin/MinecraftTerminal";
 
 export default async function DashboardPage() {
   const [invRows, announcementRows, userRows, serverInfo] = await Promise.all([
@@ -55,6 +56,7 @@ export default async function DashboardPage() {
           lastBackup={lastBackup}
           appUrl={appUrl}
         />
+        <MinecraftTerminal />
       </div>
     </main>
   );

@@ -85,11 +85,13 @@ function MetricChart({
   lines,
   yDomain,
   yFormatter = (v: number) => `${v}%`,
+  tooltipFormatter,
 }: {
   data: MetricPoint[];
   lines: ChartLine[];
   yDomain?: [number | string, number | string];
   yFormatter?: (v: number) => string;
+  tooltipFormatter?: (v: number) => string;
 }) {
   if (data.length < 2) {
     return (
@@ -115,7 +117,7 @@ function MetricChart({
         <Tooltip
           contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: T.mono, fontSize: 11 }}
           labelFormatter={(label) => fmtTime(label as string)}
-          formatter={(v, name) => [yFormatter(v as number), name]}
+          formatter={(v, name) => [(tooltipFormatter ?? yFormatter)(v as number), name]}
         />
         {lines.map((l) => (
           <Area key={l.dataKey} type="monotone" dataKey={l.dataKey} name={l.name} stroke={l.color} strokeWidth={1.5} fill={`url(#grad-${l.dataKey})`} dot={false} isAnimationActive={false} connectNulls={false} />
@@ -133,6 +135,7 @@ function ChartCard({
   lines,
   yDomain,
   yFormatter,
+  tooltipFormatter,
   full,
 }: {
   label: string;
@@ -141,6 +144,7 @@ function ChartCard({
   lines: ChartLine[];
   yDomain?: [number | string, number | string];
   yFormatter?: (v: number) => string;
+  tooltipFormatter?: (v: number) => string;
   full?: boolean;
 }) {
   return (
@@ -156,7 +160,7 @@ function ChartCard({
           ))}
         </div>
       </div>
-      <MetricChart data={data} lines={lines} yDomain={yDomain} yFormatter={yFormatter} />
+      <MetricChart data={data} lines={lines} yDomain={yDomain} yFormatter={yFormatter} tooltipFormatter={tooltipFormatter} />
     </div>
   );
 }
@@ -302,6 +306,7 @@ export default function AdminTabs({
                 ]}
                 yDomain={["auto", "auto"]}
                 yFormatter={fmtMb}
+                tooltipFormatter={(v) => `${Math.round(v)} Mo`}
               />
             </div>
 
