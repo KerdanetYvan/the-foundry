@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc, lt } from "drizzle-orm";
+import { desc, lt, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { serverMetrics } from "@/lib/db/schema";
 import { readMetrics } from "@/lib/metrics";
@@ -7,6 +7,7 @@ import { readMetrics } from "@/lib/metrics";
 export async function GET() {
   const snap = await readMetrics();
   const pruneAfter = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
 
   await Promise.all([
     db.insert(serverMetrics).values({
@@ -22,8 +23,8 @@ export async function GET() {
   const history = await db
     .select()
     .from(serverMetrics)
-    .orderBy(desc(serverMetrics.recordedAt))
-    .limit(60);
+    .where(gte(serverMetrics.recordedAt, thirtyMinAgo))
+    .orderBy(desc(serverMetrics.recordedAt));
 
   return NextResponse.json({ current: snap, history: history.reverse() });
 }

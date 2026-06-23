@@ -71,6 +71,7 @@ function MetricChart({
     );
   }
   return (
+    <div style={{ overflow: "hidden", borderRadius: 4 }}>
     <ResponsiveContainer width="100%" height={100}>
       <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <defs>
@@ -93,6 +94,7 @@ function MetricChart({
         ))}
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -196,7 +198,7 @@ export default function AdminTabs({
     return () => clearInterval(id);
   }, [activeTab]);
 
-  const hasMc = current?.mcCpuPct !== null;
+  const hasMc = current != null && current.mcCpuPct !== null;
 
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
