@@ -1,0 +1,48 @@
+diff --git a/node_modules/recharts/lib/state/legendSlice.js b/node_modules/recharts/lib/state/legendSlice.js
+index 4ca008e..59d0989 100644
+--- a/node_modules/recharts/lib/state/legendSlice.js
++++ b/node_modules/recharts/lib/state/legendSlice.js
+@@ -53,7 +53,8 @@ var legendSlice = (0, _toolkit.createSlice)({
+           prev,
+           next
+         } = action.payload;
+-        var index = (0, _toolkit.current)(state).payload.indexOf((0, _immer.castDraft)(prev));
++        var dataKey = prev[0] && prev[0].dataKey;
++        var index = state.payload.findIndex(function(arr) { return arr[0] && arr[0].dataKey === dataKey; });
+         if (index > -1) {
+           state.payload[index] = (0, _immer.castDraft)(next);
+         }
+@@ -62,7 +63,8 @@ var legendSlice = (0, _toolkit.createSlice)({
+     },
+     removeLegendPayload: {
+       reducer(state, action) {
+-        var index = (0, _toolkit.current)(state).payload.indexOf((0, _immer.castDraft)(action.payload));
++        var dataKey = action.payload[0] && action.payload[0].dataKey;
++        var index = state.payload.findIndex(function(arr) { return arr[0] && arr[0].dataKey === dataKey; });
+         if (index > -1) {
+           state.payload.splice(index, 1);
+         }
+diff --git a/node_modules/recharts/lib/state/tooltipSlice.js b/node_modules/recharts/lib/state/tooltipSlice.js
+index d2e59b4..11e0f8b 100644
+--- a/node_modules/recharts/lib/state/tooltipSlice.js
++++ b/node_modules/recharts/lib/state/tooltipSlice.js
+@@ -130,7 +130,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
+           prev,
+           next
+         } = action.payload;
+-        var index = (0, _toolkit.current)(state).tooltipItemPayloads.indexOf((0, _immer.castDraft)(prev));
++        var id = prev.settings.graphicalItemId;
++        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
+         if (index > -1) {
+           state.tooltipItemPayloads[index] = (0, _immer.castDraft)(next);
+         }
+@@ -139,7 +140,8 @@ var tooltipSlice = (0, _toolkit.createSlice)({
+     },
+     removeTooltipEntrySettings: {
+       reducer(state, action) {
+-        var index = (0, _toolkit.current)(state).tooltipItemPayloads.indexOf((0, _immer.castDraft)(action.payload));
++        var id = action.payload.settings.graphicalItemId;
++        var index = state.tooltipItemPayloads.findIndex(function(item) { return item.settings.graphicalItemId === id; });
+         if (index > -1) {
+           state.tooltipItemPayloads.splice(index, 1);
+         }
