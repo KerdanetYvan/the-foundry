@@ -47,6 +47,11 @@ body {
 .mc-prose code { font-family: var(--font-mono, monospace); font-size: 0.85em; background: rgba(255,255,255,0.06); border-radius: 3px; padding: 1px 5px; }
 .mc-prose hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 14px 0; }
 
+.terminal-scroll::-webkit-scrollbar { width: 6px; }
+.terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+.terminal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+.terminal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
 .mc-step { transition: border-color 0.2s, transform 0.2s; }
 .mc-step:hover { border-color: rgba(93, 158, 64, 0.45) !important; transform: translateY(-2px); }
 .mc-copy { cursor: pointer; border: none; }

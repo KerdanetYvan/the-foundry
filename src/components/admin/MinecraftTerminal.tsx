@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sendCommand } from "@/lib/actions/minecraft";
 import { T } from "@/lib/tokens";
 
@@ -22,6 +22,7 @@ export default function MinecraftTerminal() {
   const [lines, setLines] = useState<Line[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [hideRcon, setHideRcon] = useState(true);
   const outputRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
 
@@ -52,7 +53,7 @@ export default function MinecraftTerminal() {
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     const cmd = input.trim();
     if (!cmd || pending) return;
@@ -111,16 +112,24 @@ export default function MinecraftTerminal() {
             fontSize: 11,
             color: T.muted,
             letterSpacing: ".08em",
+            flex: 1,
           }}
         >
           CONSOLE MINECRAFT
         </span>
+        <button
+          onClick={() => setHideRcon(v => !v)}
+          style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 4, padding: "3px 10px", fontFamily: T.mono, fontSize: 10, color: hideRcon ? T.muted : "#FBBF24", cursor: "pointer", letterSpacing: ".06em" }}
+        >
+          {hideRcon ? "RCON masqué" : "RCON visible"}
+        </button>
       </div>
 
       {/* Sortie du log */}
       <div
         ref={outputRef}
         onScroll={handleScroll}
+        className="terminal-scroll"
         style={{
           height: 320,
           overflowY: "auto",
@@ -134,7 +143,7 @@ export default function MinecraftTerminal() {
         {lines.length === 0 ? (
           <span style={{ color: T.muted }}>En attente des logs…</span>
         ) : (
-          lines.map((l) => (
+          lines.filter(l => !hideRcon || !l.text.includes("[RCON")).map((l) => (
             <div
               key={l.id}
               style={{ color: l.color, whiteSpace: "pre-wrap", wordBreak: "break-all" }}
