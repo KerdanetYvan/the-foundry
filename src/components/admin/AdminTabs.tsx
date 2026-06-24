@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { T } from "@/lib/tokens";
 import type { ServerInfo } from "@/lib/rcon";
 import AnnouncementManager from "./AnnouncementManager";
@@ -19,14 +20,35 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null };
+type CpuPoint = { time: number; cpuPct: number; mcCpuPct: number | null };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
 type Announcement = { id: number; content: string; createdAt: string };
 type Invitation = { id: number; token: string; maxUses: number; useCount: number; expiresAt: string; createdAt: string };
+
+const HOUR_MS = 3_600_000;
+const TICK_MS = 15 * 60 * 1000;
+const SAMPLE_MS = 30_000;
 
 function tpsColor(tps: number) {
   if (tps >= 18) return T.grass;
   if (tps >= 12) return "#FBBF24";
   return "#F87171";
+}
+
+function fmtTick(t: number) {
+  return new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function yMax(history: CpuPoint[]): number {
+  const max = history.reduce((m, p) => Math.max(m, p.cpuPct, p.mcCpuPct ?? 0), 0);
+  return Math.max(20, Math.ceil(max / 20) * 20);
+}
+
+function cpuXTicks(now: number): number[] {
+  const start = Math.ceil((now - HOUR_MS) / TICK_MS) * TICK_MS;
+  const ticks: number[] = [];
+  for (let t = start; t <= now; t += TICK_MS) ticks.push(t);
+  return ticks;
 }
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
@@ -65,6 +87,8 @@ export default function AdminTabs({
   const [activeTab, setActiveTab] = useState<Tab>("monitoring");
   const [serverInfo, setServerInfo] = useState<ServerInfo>(initialServerInfo);
   const [live, setLive] = useState<LiveSnapshot | null>(null);
+  const [cpuHistory, setCpuHistory] = useState<CpuPoint[]>([]);
+  const lastSampleRef = useRef<number>(0);
 
   useEffect(() => {
     const poll = async () => {
@@ -84,7 +108,18 @@ export default function AdminTabs({
     const poll = async () => {
       try {
         const res = await fetch("/api/metrics/current");
-        if (res.ok && active) setLive(await res.json());
+        if (res.ok && active) {
+          const data: LiveSnapshot = await res.json();
+          setLive(data);
+          const now = Date.now();
+          if (now - lastSampleRef.current >= SAMPLE_MS) {
+            lastSampleRef.current = now;
+            setCpuHistory(prev => [
+              ...prev.filter(p => p.time >= now - HOUR_MS),
+              { time: now, cpuPct: data.cpuPct, mcCpuPct: data.mcCpuPct },
+            ]);
+          }
+        }
       } catch {}
       if (active) setTimeout(poll, 1_000);
     };
@@ -106,78 +141,119 @@ export default function AdminTabs({
       <div style={{ padding: "28px 32px" }}>
 
         {/* ── Monitoring ── */}
-        {activeTab === "monitoring" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-              <StatCard label="STATUT SERVEUR">
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: serverInfo.online ? T.grass : "#F87171", flexShrink: 0 }} />
-                  <span style={{ fontFamily: T.sans, fontSize: 14, color: T.text }}>{serverInfo.online ? "En ligne" : "Hors ligne"}</span>
-                </div>
-              </StatCard>
-              <StatCard label="JOUEURS">
-                <span style={{ fontFamily: T.mono, fontSize: 16, color: T.text }}>
-                  {serverInfo.players ? `${serverInfo.players.online} / ${serverInfo.players.max}` : "—"}
-                </span>
-              </StatCard>
-              <StatCard label="TPS">
-                <span style={{ fontFamily: T.mono, fontSize: 16, color: serverInfo.tps !== null ? tpsColor(serverInfo.tps) : T.muted }}>
-                  {serverInfo.tps !== null ? serverInfo.tps.toFixed(1) : "—"}
-                </span>
-              </StatCard>
-              <StatCard label="DERNIÈRE SAUVEGARDE">
-                <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
-              </StatCard>
-            </div>
-
-            {/* Cards métriques live */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {/* CPU */}
-              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>CPU</div>
-                <div style={{ display: "flex" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
-                    <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
-                      {live ? `${live.cpuPct.toFixed(1)}%` : "—"}
-                    </span>
+        {activeTab === "monitoring" && (() => {
+          const now = Date.now();
+          const domain: [number, number] = [now - HOUR_MS, now];
+          const ticks = cpuXTicks(now);
+          const hasMc = live?.mcCpuPct != null;
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+                <StatCard label="STATUT SERVEUR">
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: serverInfo.online ? T.grass : "#F87171", flexShrink: 0 }} />
+                    <span style={{ fontFamily: T.sans, fontSize: 14, color: T.text }}>{serverInfo.online ? "En ligne" : "Hors ligne"}</span>
                   </div>
-                  {live?.mcCpuPct != null && (
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
-                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
-                        {`${live.mcCpuPct.toFixed(1)}%`}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                </StatCard>
+                <StatCard label="JOUEURS">
+                  <span style={{ fontFamily: T.mono, fontSize: 16, color: T.text }}>
+                    {serverInfo.players ? `${serverInfo.players.online} / ${serverInfo.players.max}` : "—"}
+                  </span>
+                </StatCard>
+                <StatCard label="TPS">
+                  <span style={{ fontFamily: T.mono, fontSize: 16, color: serverInfo.tps !== null ? tpsColor(serverInfo.tps) : T.muted }}>
+                    {serverInfo.tps !== null ? serverInfo.tps.toFixed(1) : "—"}
+                  </span>
+                </StatCard>
+                <StatCard label="DERNIÈRE SAUVEGARDE">
+                  <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
+                </StatCard>
               </div>
 
-              {/* RAM */}
-              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>RAM</div>
-                <div style={{ display: "flex" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
-                    <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
-                      {live ? `${(live.ramMb / 1024).toFixed(1)} / ${Math.round(live.ramTotalMb / 1024)} Go` : "—"}
-                    </span>
-                  </div>
-                  {live?.mcRamMb != null && (
+              {/* Cards métriques live */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {/* CPU */}
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>CPU</div>
+                  <div style={{ display: "flex", marginBottom: 16 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
-                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
-                        {live.mcRamTotalMb != null
-                          ? `${(live.mcRamMb / 1024).toFixed(1)} / ${Math.round(live.mcRamTotalMb / 1024)} Go`
-                          : `${(live.mcRamMb / 1024).toFixed(1)} Go`}
+                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
+                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
+                        {live ? `${live.cpuPct.toFixed(1)}%` : "—"}
                       </span>
                     </div>
-                  )}
+                    {hasMc && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
+                        <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
+                          {`${live!.mcCpuPct!.toFixed(1)}%`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={cpuHistory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="g-cpu-host" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={T.grass} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={T.grass} stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="g-cpu-mc" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={T.copper} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={T.copper} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="time" type="number" scale="time" domain={domain} ticks={ticks} tickFormatter={fmtTick} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} />
+                      <YAxis domain={[0, yMax(cpuHistory)]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "6px 10px", fontFamily: T.mono, fontSize: 11 }}>
+                              <div style={{ color: T.muted, marginBottom: 4 }}>{fmtTick(label as number)}</div>
+                              {payload.map((p) => (
+                                <div key={p.dataKey as string} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.color, flexShrink: 0, display: "inline-block" }} />
+                                  <span style={{ color: T.textSub }}>{p.dataKey === "cpuPct" ? "Serveur" : "Minecraft"}</span>
+                                  <span style={{ color: T.text, fontWeight: 700 }}>{`${(p.value as number).toFixed(1)}%`}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Area type="monotone" dataKey="cpuPct" stroke={T.grass} strokeWidth={1.5} fill="url(#g-cpu-host)" dot={false} isAnimationActive={false} connectNulls />
+                      {hasMc && <Area type="monotone" dataKey="mcCpuPct" stroke={T.copper} strokeWidth={1.5} fill="url(#g-cpu-mc)" dot={false} isAnimationActive={false} connectNulls />}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* RAM */}
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>RAM</div>
+                  <div style={{ display: "flex" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
+                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
+                        {live ? `${(live.ramMb / 1024).toFixed(1)} / ${Math.round(live.ramTotalMb / 1024)} Go` : "—"}
+                      </span>
+                    </div>
+                    {live?.mcRamMb != null && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
+                        <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
+                          {live.mcRamTotalMb != null
+                            ? `${(live.mcRamMb / 1024).toFixed(1)} / ${Math.round(live.mcRamTotalMb / 1024)} Go`
+                            : `${(live.mcRamMb / 1024).toFixed(1)} Go`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Modération ── */}
         {activeTab === "moderation" && (
