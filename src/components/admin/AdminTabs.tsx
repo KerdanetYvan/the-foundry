@@ -20,7 +20,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "annonces", label: "Annonces" },
 ];
 
-type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null; diskGb: number; diskTotalGb: number; uptimeSeconds: number };
+type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null; diskGb: number; diskTotalGb: number; uptimeSeconds: number; mcUptimeSeconds: number | null };
 type CpuPoint = { time: number; cpuPct: number; mcCpuPct: number | null };
 type RamPoint = { time: number; ramMb: number; mcRamMb: number | null };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
@@ -322,10 +322,23 @@ export default function AdminTabs({
                   )}
                 </div>
                 <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
-                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>UPTIME SERVEUR</div>
-                  <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.text }}>
-                    {live ? fmtUptime(live.uptimeSeconds) : "—"}
-                  </span>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>UPTIME</div>
+                  <div style={{ display: "flex" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>HETZNER</div>
+                      <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
+                        {live ? fmtUptime(live.uptimeSeconds) : "—"}
+                      </span>
+                    </div>
+                    {hasMc && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>MINECRAFT</div>
+                        <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.copper }}>
+                          {live?.mcUptimeSeconds != null ? fmtUptime(live.mcUptimeSeconds) : "—"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

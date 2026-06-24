@@ -29,6 +29,13 @@ function readProcessTicks(pid: number): number {
   return parseInt(fields[11], 10) + parseInt(fields[12], 10);
 }
 
+function getMcUptime(pid: number, systemUptimeSeconds: number): number {
+  const stat = readFileSync(`/host/proc/${pid}/stat`, "utf8");
+  const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+  const startTicks = parseInt(fields[19], 10); // field 22 overall = index 19 after ")"
+  return Math.max(0, Math.floor(systemUptimeSeconds - startTicks / 100));
+}
+
 function getHostRam(): { pct: number; mb: number; totalMb: number } {
   const content = readFileSync("/host/proc/meminfo", "utf8");
   const get = (key: string) => {
@@ -105,6 +112,7 @@ export type MetricsSnapshot = {
   mcRamPct: number | null;
   mcRamMb: number | null;
   mcRamTotalMb: number | null;
+  mcUptimeSeconds: number | null;
 };
 
 export async function readMetrics(): Promise<MetricsSnapshot> {
@@ -135,6 +143,7 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
     const mcRam = mcPid !== null ? getMcRam(mcPid) : null;
     const mcRamTotalMb = mcPid !== null ? getMcMaxRamMb(mcPid) : null;
     const uptimeSeconds = getUptime();
+    const mcUptimeSeconds = mcPid !== null ? getMcUptime(mcPid, uptimeSeconds) : null;
 
     return {
       cpuPct,
@@ -149,6 +158,7 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
       mcRamPct: mcRam?.pct ?? null,
       mcRamMb: mcRam?.mb ?? null,
       mcRamTotalMb,
+      mcUptimeSeconds,
     };
   } catch {
     return {
@@ -164,6 +174,7 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
       mcRamPct: Math.round(Math.random() * 10 + 20),
       mcRamMb: 3200 + Math.round(Math.random() * 600),
       mcRamTotalMb: 8192,
+      mcUptimeSeconds: 3600,
     };
   }
 }
