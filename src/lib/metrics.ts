@@ -76,13 +76,19 @@ function getMcRam(pid: number): { pct: number; mb: number } | null {
   }
 }
 
-function getDisk(): { pct: number; gb: number } {
+function getUptime(): number {
+  const content = readFileSync("/host/proc/uptime", "utf8");
+  return Math.floor(parseFloat(content.split(" ")[0]));
+}
+
+function getDisk(): { pct: number; gb: number; totalGb: number } {
   const s = statfsSync("/host/root");
   const used = s.blocks - s.bfree;
   const total = used + s.bavail;
   return {
     pct: total === 0 ? 0 : Math.round((used / total) * 1000) / 10,
     gb: Math.round((used * s.bsize) / 1e9 * 10) / 10,
+    totalGb: Math.round((total * s.bsize) / 1e9 * 10) / 10,
   };
 }
 
@@ -93,6 +99,8 @@ export type MetricsSnapshot = {
   ramTotalMb: number;
   diskPct: number;
   diskGb: number;
+  diskTotalGb: number;
+  uptimeSeconds: number;
   mcCpuPct: number | null;
   mcRamPct: number | null;
   mcRamMb: number | null;
@@ -126,6 +134,7 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
     const disk = getDisk();
     const mcRam = mcPid !== null ? getMcRam(mcPid) : null;
     const mcRamTotalMb = mcPid !== null ? getMcMaxRamMb(mcPid) : null;
+    const uptimeSeconds = getUptime();
 
     return {
       cpuPct,
@@ -134,6 +143,8 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
       ramTotalMb: ram.totalMb,
       diskPct: disk.pct,
       diskGb: disk.gb,
+      diskTotalGb: disk.totalGb,
+      uptimeSeconds,
       mcCpuPct,
       mcRamPct: mcRam?.pct ?? null,
       mcRamMb: mcRam?.mb ?? null,
@@ -147,6 +158,8 @@ export async function readMetrics(): Promise<MetricsSnapshot> {
       ramTotalMb: 16384,
       diskPct: 38,
       diskGb: Math.round((47 + Math.random() * 2) * 10) / 10,
+      diskTotalGb: 120,
+      uptimeSeconds: 0,
       mcCpuPct: Math.round(Math.random() * 15 + 5),
       mcRamPct: Math.round(Math.random() * 10 + 20),
       mcRamMb: 3200 + Math.round(Math.random() * 600),

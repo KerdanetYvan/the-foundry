@@ -20,7 +20,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "annonces", label: "Annonces" },
 ];
 
-type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null };
+type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null; diskGb: number; diskTotalGb: number; uptimeSeconds: number };
 type CpuPoint = { time: number; cpuPct: number; mcCpuPct: number | null };
 type RamPoint = { time: number; ramMb: number; mcRamMb: number | null };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
@@ -39,6 +39,15 @@ function tpsColor(tps: number) {
 
 function fmtTick(t: number) {
   return new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtUptime(s: number): string {
+  if (s < 3600) return `${Math.floor(s / 60)} min`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h < 24) return `${h}h ${m.toString().padStart(2, "0")}min`;
+  const d = Math.floor(h / 24);
+  return `${d}j ${(h % 24)}h`;
 }
 
 function cpuYMax(history: CpuPoint[]): number {
@@ -296,6 +305,27 @@ export default function AdminTabs({
                       {hasMc && <Area type="monotone" dataKey="mcRamMb" stroke={T.copper} strokeWidth={1.5} fill="url(#g-ram-mc)" dot={false} isAnimationActive={false} connectNulls />}
                     </AreaChart>
                   </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Disque + Uptime */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>STOCKAGE</div>
+                  <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.text }}>
+                    {live ? `${live.diskGb} / ${live.diskTotalGb} Go` : "—"}
+                  </span>
+                  {live && (
+                    <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: T.border, overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: 2, width: `${(live.diskGb / live.diskTotalGb) * 100}%`, background: live.diskGb / live.diskTotalGb > 0.85 ? "#F87171" : live.diskGb / live.diskTotalGb > 0.65 ? "#FBBF24" : T.grass }} />
+                    </div>
+                  )}
+                </div>
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 8, letterSpacing: ".08em" }}>UPTIME SERVEUR</div>
+                  <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.text }}>
+                    {live ? fmtUptime(live.uptimeSeconds) : "—"}
+                  </span>
                 </div>
               </div>
             </div>
