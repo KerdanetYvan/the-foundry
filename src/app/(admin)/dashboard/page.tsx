@@ -22,10 +22,7 @@ export default async function DashboardPage() {
     getServerInfo(),
   ]);
 
-  const lastBackupDate = getLastBackupDate();
-  const lastBackup = lastBackupDate
-    ? lastBackupDate.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
-    : null;
+  const lastBackupTs = getLastBackupDate()?.getTime() ?? null;
 
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -53,7 +50,7 @@ export default async function DashboardPage() {
           users={userRows.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }))}
           announcements={announcementRows.map((a) => ({ id: a.id, content: a.content, createdAt: a.createdAt.toISOString() }))}
           invitations={invRows.map((inv) => ({ ...inv, expiresAt: inv.expiresAt.toISOString(), createdAt: inv.createdAt.toISOString() }))}
-          lastBackup={lastBackup}
+          lastBackupTs={lastBackupTs}
           appUrl={appUrl}
         />
         <MinecraftTerminal />

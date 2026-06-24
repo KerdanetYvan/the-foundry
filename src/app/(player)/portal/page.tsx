@@ -9,6 +9,7 @@ import { verifySession } from "@/lib/auth/session";
 import { logout } from "@/lib/actions/auth";
 import { getServerInfo } from "@/lib/rcon";
 import { getLastBackupDate } from "@/lib/backup";
+import BackupDate from "@/components/BackupDate";
 import AnnouncementsSection from "@/components/portal/AnnouncementsSection";
 import ServerStatus from "@/components/portal/ServerStatus";
 
@@ -27,10 +28,7 @@ export default async function PortalPage() {
 
   const address = process.env.SERVER_ADDRESS ?? "server-mc.kerdanetyvan.dev";
 
-  const lastBackupDate = getLastBackupDate();
-  const lastBackup = lastBackupDate
-    ? lastBackupDate.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
-    : null;
+  const lastBackupTs = getLastBackupDate()?.getTime() ?? null;
 
   return (
     <main style={{ background: T.bg, color: T.text, minHeight: "100vh", fontFamily: T.sans, padding: "60px 32px" }}>
@@ -61,7 +59,7 @@ export default async function PortalPage() {
         {/* Dernière sauvegarde */}
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontFamily: T.mono, fontSize: 11, color: T.muted }}>DERNIÈRE SAUVEGARDE</span>
-          <span style={{ fontFamily: T.mono, fontSize: 13, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
+          <span style={{ fontFamily: T.mono, fontSize: 13, color: lastBackupTs ? T.textSub : T.muted }}><BackupDate ts={lastBackupTs} /></span>
         </div>
 
         {/* Adresse serveur */}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { T } from "@/lib/tokens";
 import type { ServerInfo } from "@/lib/rcon";
+import BackupDate from "@/components/BackupDate";
 import AnnouncementManager from "./AnnouncementManager";
 import CreateInviteModal from "./CreateInviteModal";
 import InvitationsTable from "./InvitationsTable";
@@ -21,6 +22,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null };
 type CpuPoint = { time: number; cpuPct: number; mcCpuPct: number | null };
+type RamPoint = { time: number; ramMb: number; mcRamMb: number | null };
 type User = { id: number; username: string; role: string; whitelisted: boolean; createdAt: string };
 type Announcement = { id: number; content: string; createdAt: string };
 type Invitation = { id: number; token: string; maxUses: number; useCount: number; expiresAt: string; createdAt: string };
@@ -39,9 +41,14 @@ function fmtTick(t: number) {
   return new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function yMax(history: CpuPoint[]): number {
+function cpuYMax(history: CpuPoint[]): number {
   const max = history.reduce((m, p) => Math.max(m, p.cpuPct, p.mcCpuPct ?? 0), 0);
   return Math.max(20, Math.ceil(max / 20) * 20);
+}
+
+function ramYMax(history: RamPoint[]): number {
+  const maxMb = history.reduce((m, p) => Math.max(m, p.ramMb, p.mcRamMb ?? 0), 0);
+  return Math.max(2, Math.ceil(maxMb / 1024 / 2) * 2) * 1024;
 }
 
 function cpuXTicks(now: number): number[] {
@@ -73,14 +80,14 @@ export default function AdminTabs({
   users,
   announcements,
   invitations,
-  lastBackup,
+  lastBackupTs,
   appUrl,
 }: {
   initialServerInfo: ServerInfo;
   users: User[];
   announcements: Announcement[];
   invitations: Invitation[];
-  lastBackup: string | null;
+  lastBackupTs: number | null;
   appUrl: string;
 }) {
   const router = useRouter();
@@ -88,6 +95,7 @@ export default function AdminTabs({
   const [serverInfo, setServerInfo] = useState<ServerInfo>(initialServerInfo);
   const [live, setLive] = useState<LiveSnapshot | null>(null);
   const [cpuHistory, setCpuHistory] = useState<CpuPoint[]>([]);
+  const [ramHistory, setRamHistory] = useState<RamPoint[]>([]);
   const lastSampleRef = useRef<number>(0);
 
   useEffect(() => {
@@ -117,6 +125,10 @@ export default function AdminTabs({
             setCpuHistory(prev => [
               ...prev.filter(p => p.time >= now - HOUR_MS),
               { time: now, cpuPct: data.cpuPct, mcCpuPct: data.mcCpuPct },
+            ]);
+            setRamHistory(prev => [
+              ...prev.filter(p => p.time >= now - HOUR_MS),
+              { time: now, ramMb: data.ramMb, mcRamMb: data.mcRamMb },
             ]);
           }
         }
@@ -166,7 +178,7 @@ export default function AdminTabs({
                   </span>
                 </StatCard>
                 <StatCard label="DERNIÈRE SAUVEGARDE">
-                  <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackup ? T.textSub : T.muted }}>{lastBackup ?? "Aucune info"}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: 12, color: lastBackupTs ? T.textSub : T.muted }}><BackupDate ts={lastBackupTs} /></span>
                 </StatCard>
               </div>
 
@@ -204,7 +216,7 @@ export default function AdminTabs({
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="time" type="number" scale="time" domain={domain} ticks={ticks} tickFormatter={fmtTick} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} />
-                      <YAxis domain={[0, yMax(cpuHistory)]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                      <YAxis domain={[0, cpuYMax(cpuHistory)]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
                       <Tooltip
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
@@ -231,7 +243,7 @@ export default function AdminTabs({
                 {/* RAM */}
                 <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "14px 20px" }}>
                   <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 12, letterSpacing: ".08em" }}>RAM</div>
-                  <div style={{ display: "flex" }}>
+                  <div style={{ display: "flex", marginBottom: 16 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: T.mono, fontSize: 10, color: T.muted, marginBottom: 4 }}>SERVEUR</div>
                       <span style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, whiteSpace: "nowrap", color: T.grass }}>
@@ -249,6 +261,41 @@ export default function AdminTabs({
                       </div>
                     )}
                   </div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={ramHistory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="g-ram-host" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={T.grass} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={T.grass} stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="g-ram-mc" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={T.copper} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={T.copper} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="time" type="number" scale="time" domain={domain} ticks={ticks} tickFormatter={fmtTick} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} />
+                      <YAxis domain={[0, ramYMax(ramHistory)]} tick={{ fontFamily: T.mono, fontSize: 9, fill: T.muted }} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(v / 1024)} Go`} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "6px 10px", fontFamily: T.mono, fontSize: 11 }}>
+                              <div style={{ color: T.muted, marginBottom: 4 }}>{fmtTick(label as number)}</div>
+                              {payload.map((p) => (
+                                <div key={p.dataKey as string} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.color, flexShrink: 0, display: "inline-block" }} />
+                                  <span style={{ color: T.textSub }}>{p.dataKey === "ramMb" ? "Serveur" : "Minecraft"}</span>
+                                  <span style={{ color: T.text, fontWeight: 700 }}>{`${Math.round(p.value as number)} Mo`}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Area type="monotone" dataKey="ramMb" stroke={T.grass} strokeWidth={1.5} fill="url(#g-ram-host)" dot={false} isAnimationActive={false} connectNulls />
+                      {hasMc && <Area type="monotone" dataKey="mcRamMb" stroke={T.copper} strokeWidth={1.5} fill="url(#g-ram-mc)" dot={false} isAnimationActive={false} connectNulls />}
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
