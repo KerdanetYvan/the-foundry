@@ -1,0 +1,30 @@
+services:
+  minecraft-dev:
+    image: itzg/minecraft-server:java17
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      EULA: "TRUE"
+      TYPE: FORGE
+      VERSION: "1.20.1"
+      FORGE_VERSION: "47.4.0"
+      MEMORY: "2G"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      RCON_PORT: "25575"
+      # Pas de vérification de compte Mojang en local
+      ONLINE_MODE: "FALSE"
+    volumes:
+      # Données persistantes du serveur (monde, configs…)
+      - mc_dev_data:/data
+      # Dossier mods partagé avec l'app Next.js (MC_MODS_PATH dans .env)
+      - ${MC_MODS_HOST_PATH}:/data/mods
+      # Logs accessibles depuis le host pour la console de l'app
+      - ./dev-logs:/data/logs
+    ports:
+      - "25565:25565"   # jeu
+      - "25575:25575"   # RCON
+
+volumes:
+  mc_dev_data:

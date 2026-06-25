@@ -10,14 +10,16 @@ import AnnouncementManager from "./AnnouncementManager";
 import CreateInviteModal from "./CreateInviteModal";
 import InvitationsTable from "./InvitationsTable";
 import { kickPlayer, banPlayer, setWhitelisted } from "@/lib/actions/moderation";
+import ModsTab from "./ModsTab";
 
-type Tab = "monitoring" | "moderation" | "invitations" | "annonces";
+type Tab = "monitoring" | "moderation" | "invitations" | "annonces" | "mods";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "monitoring", label: "Monitoring" },
   { key: "moderation", label: "Modération" },
   { key: "invitations", label: "Invitations" },
   { key: "annonces", label: "Annonces" },
+  { key: "mods", label: "Mods" },
 ];
 
 type LiveSnapshot = { cpuPct: number; mcCpuPct: number | null; ramMb: number; ramTotalMb: number; mcRamMb: number | null; mcRamTotalMb: number | null; diskGb: number; diskTotalGb: number; uptimeSeconds: number; mcUptimeSeconds: number | null };
@@ -403,6 +405,9 @@ export default function AdminTabs({
         {activeTab === "annonces" && (
           <AnnouncementManager items={announcements} />
         )}
+
+        {/* ── Mods ── */}
+        {activeTab === "mods" && <ModsTab />}
       </div>
     </div>
   );
